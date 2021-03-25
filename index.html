@@ -42,35 +42,62 @@
            {titulo: "Interstellar",  director: "Christopher Nolan", "miniatura": "files/interstellar.png"}
         ];
 
-        let mis_peliculas = [];
+        let mis_peliculas = []; //variable global accesible desde todos los controladores para no tener que hacer un metodo get en showview, noaccedo a la api sino que accedo directamente a la variable de mis peliculas
 
-        const postAPI = async (peliculas) => {
+        const postAPI = async (peliculas) => { //se ejecuta de manera asincrona
             try {
-                const res = await fetch("https://myjson.dit.upm.es/api/bins", {
-                  method: 'POST', 
+                const res = await fetch("https://myjson.dit.upm.es/api/bins", { //pongo await porque la funcion es asincrona
+                      method: 'POST', 
                   headers:{
                       "Content-Type": "application/json",
                   },
                   body: JSON.stringify(peliculas)
                 });
-                const {uri} = await res.json();
-                return uri;               
+                const {uri} = await res.json(); //tenemos que extraer el contenido http del json la respuesta es del tipo {uri: ""https://my.json.dir.upm.es/api/bins/sdfsdf"}
+                /*la anterior sentencia seria lo mismo que poner:
+                * const contenido = await res.json();
+                * const uri = contenido.uri;
+                * Seria lo mismo pero en dos pasos */
+                return uri; //nos devuelve el contenido
             } catch (err) {
                 alert("No se ha podido crear el endpoint.")
+                setTimeout(()=>postAPI(peliculas), 10000); //recursivo, si falla intentarlo cada 10s para establecer correctamente la conexion
             }
         }
         const getAPI = async () => {
             // Completar: Llamar a la API para leer la información guardada en myjson a través de la API
+            try{
+                //vamos a hacer la peticion 
+                const respuestaJson = await fetch(localStorage.URL);
+                //console.log(respuesta);
 
+                const peliculas = await respuestaJson.json();
+                //console.log(peliculas); //como nos devuelve directamente el array de las peliculas no tenemos que hacer nada mas
+                return peliculas;
+            }catch(err){
+                alert ("Ha habido un error al leer las peliculas");
+            }
           
         }
         const updateAPI = async (peliculas) => {
-            // Completar: Actualizar la información a través de la API
+            try {
+                const res = await fetch(localStorage.URL, { 
+                  method: 'PUT', 
+                  headers:{
+                      "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(peliculas)
+                });
+                
+                return res; 
+            } catch(err) {
+                alert("No se ha podido actualizar la informacion de las peliculas.")
+            }
         }
 
  
         // VISTAS
-
+        // Vista principal de la aplicacion
         const indexView = (peliculas) => {
             let i=0;
             let view = "";
@@ -79,13 +106,16 @@
               view += `
                 <div class="movie">
                    <div class="movie-img">
-                        <img class="show" data-my-id="${i}" src="${peliculas[i].miniatura}" onerror="this.src='files/placeholder.png'"/>
+                        <img data-my-id="${i}" src="${peliculas[i].miniatura}" onerror="this.src='files/placeholder.png'"/>
                    </div>
                    <div class="title">
                        ${peliculas[i].titulo || "<em>Sin título</em>"}
                    </div>
                    <div class="actions">
-                       <button class="edit" data-my-id="${i}">editar</button>
+                        <!--Insertar aquí botones de "Show" y "Delete"-->
+                        <button class="show" data-my-id="${i}">ver</button>
+                        <button class="edit" data-my-id="${i}">editar</button>
+                       <button class="delete" data-my-id="${i}">borrar</button>
                     </div>
                 </div>\n`;
               i = i + 1;
@@ -93,27 +123,27 @@
 
             view += `<div class="actions">
                         <!--Insertar aquí botones de "Añadir" y "Reset"-->
+                        <button class="reset" data-my-id="${i}">reset</button>
+                        <button class="new" data-my-id="${i}">añadir</button>
                     </div>`;
 
             return view;
-        }
+        };
 
+        // Vista que permite editar la informacion sobre una pelicula existente
         const editView = (i, pelicula) => {
             return `<h2>Editar Película </h2>
                 <div class="field">
-                Título <br>
-                <input  type="text" id="titulo" placeholder="Título" 
-                        value="${pelicula.titulo}">
+                    Título <br>
+                    <input  type="text" id="titulo" placeholder="Título" value="${pelicula.titulo}">
                 </div>
                 <div class="field">
-                Director <br>
-                <input  type="text" id="director" placeholder="Director" 
-                        value="${pelicula.director}">
+                    Director <br>
+                    <input  type="text" id="director" placeholder="Director" value="${pelicula.director}">
                 </div>
                 <div class="field">
-                Miniatura <br>
-                <input  type="text" id="miniatura" placeholder="URL de la miniatura" 
-                        value="${pelicula.miniatura}">
+                    Miniatura <br>
+                    <input  type="text" id="miniatura" placeholder="URL de la miniatura" value="${pelicula.miniatura}">
                 </div>
                 <div class="actions">
                     <button class="update" data-my-id="${i}">
@@ -122,31 +152,62 @@
                     <button class="index">
                         Volver
                     </button>
+                </div>
                `;
         }
 
+        // Vista que muestra el titulo y el director de una pelicula
         const showView = (pelicula) => {
             // Completar: genera HTML con información de la película
             // ...
 
             return `
              <p>
-             
-             
+                <h2>Sobre la película</h2>
+                <div class="field">
+                    Título <br>
+                    <h3 type="text" id="titulo">${pelicula.titulo} </h3>
+                </div>
+
+                <div class="field">
+                    Director <br>
+                    <h3  type="text" id="director">${pelicula.director} </h3>
+                </div>
+
              </p>
              <div class="actions">
                 <button class="index">Volver</button>
              </div>`;
         }
 
+        // Vista que muestra un formulario para añadir una pelicula nueva
         const newView = () => {
             // Completar: genera formulario para crear nuevo quiz
             // ...
 
             return `<h2>Crear Película</h2>
+                
+                <div class="field">
+                    Título <br>
+                    <input  type="text" id="titulo">
+                </div>
+                <div class="field">
+                    Director <br>
+                    <input  type="text" id="director">
+                </div>
+                <div class="field">
+                    Miniatura <br>
+                    <input  type="text" id="miniatura">
+                </div>
+                
                 <div class="actions">
-                    <button class="index">Volver</button>
-                </div>`;
+                    <button class="create" >
+                        Crear
+                    </button>
+                    <button class="index">
+                        Volver
+                    </button> 
+                </div>` ;
         }
 
 
@@ -154,26 +215,38 @@
 
         const initContr = async () => {
             if (!localStorage.URL || localStorage.URL === "undefined") {
-                localStorage.URL = await postAPI(mis_peliculas_iniciales);
+                localStorage.URL = await postAPI(mis_peliculas_iniciales); //como la funcion que llamo es asincrona tengo que poner await
+                //el await es solo cuando queremos recoger el resultado por algo explicitamente.
             }
             indexContr();
         }
 
         const indexContr = async () => {
-            mis_peliculas = await getAPI() || [];
-            document.getElementById('main').innerHTML = await indexView(mis_peliculas);
+            mis_peliculas = await getAPI() || []; //devuelve array de peliculas y si falla devolvera un array vacio
+            document.getElementById('main').innerHTML = await indexView(mis_peliculas); //se las pasa a indexView para que las pinte por pantalla
         }
 
         const showContr = (i) => {
             // Completar: controlador que muestra la vista showView()
+            let pelicula = mis_peliculas[i];
+            document.getElementById('main').innerHTML = showView(pelicula);
         }
 
         const newContr = () => {
             // Completar: controlador que muestra la vista newView()
+            document.getElementById('main').innerHTML = newView();
         }
 
         const createContr = async () => {
             // Completar: controlador que crea una película nueva en el modelo guardado en myjson
+            
+            let pelicula = {titulo: document.getElementById('titulo').value, director: document.getElementById('director').value, "miniatura": document.getElementById('miniatura').value};
+            mis_peliculas.push(pelicula);
+            
+            await updateAPI(mis_peliculas);
+            //una vez que lo he actualizado volvemos a la pantalla de inicio para que muestre las nuevas peliculas.
+            indexContr();
+
         }
 
         const editContr = (i) => {
@@ -191,10 +264,18 @@
         const deleteContr = async (i) => {
             // Completar:  controlador que actualiza el modelo borrando la película seleccionada
             // Genera diálogo de confirmación: botón Aceptar devuelve true, Cancel false
+            if(confirm("¿Seguro de que desea borrar la pelicula?")){
+                mis_peliculas.splice(i,1);
+                await updateAPI(mis_peliculas);
+                indexContr();
+            }
+            
         }
 
         const resetContr = async () => {
             // Completar:  controlador que reinicia el modelo guardado en myjson con las películas originales
+            await updateAPI(mis_peliculas_iniciales);
+            indexContr();
         }
 
         // ROUTER de eventos
@@ -205,11 +286,17 @@
             if      (matchEvent(ev, '.index'))  indexContr  ();
             else if (matchEvent(ev, '.edit'))   editContr   (myId(ev));
             else if (matchEvent(ev, '.update')) updateContr (myId(ev));
+            else if (matchEvent(ev, '.new')) newContr (myId(ev));
+            else if (matchEvent(ev, '.show')) showContr (myId(ev));
+            else if (matchEvent(ev, '.create')) createContr (myId(ev));
+            else if (matchEvent(ev, '.delete')) deleteContr (myId(ev));
+            else if (matchEvent(ev, '.reset')) resetContr (myId(ev));
+            // Completar añadiendo los controladores que faltan
         })
         
         
         // Inicialización        
-        document.addEventListener('DOMContentLoaded', initContr);
+        document.addEventListener('DOMContentLoaded', initContr); //aqui no es necesario poner el await aunque initContr si tenga un await por llamar a una funcion asincrona
     </script>
 </head>
 
